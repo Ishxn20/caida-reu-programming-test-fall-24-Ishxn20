@@ -10,6 +10,7 @@ int main(int argc, char *argv[]) {
     const unsigned char *packet;
     struct pcap_pkthdr header;
     int packet_count = 0;
+    int last_octet_counts[256] = {0}; // Added array to count occurrences of each last octet value (0-255)
 
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <pcap file>\n", argv[0]);
@@ -47,10 +48,27 @@ int main(int argc, char *argv[]) {
         // Parse the IP header
         struct ip *ip_header = (struct ip *)(packet + sizeof(struct ether_header)); // Changed from 'struct iphdr' to 'struct ip' for better portability
 
-        // Print the destination IP address
-        printf("Packet %d: IP destination address: %s\n", ++packet_count, inet_ntoa(ip_header->ip_dst)); // Changed to use 'ip_dst' field from 'struct ip'
+        // Extract the destination IP address
+        struct in_addr dest_ip = ip_header->ip_dst; // Using 'ip_dst' field from 'struct ip'
+
+        // Convert the IP address to host byte order and extract the last octet
+        uint32_t ip_addr = ntohl(dest_ip.s_addr); // Convert IP address to host byte order
+        int last_octet = ip_addr & 0xFF; // Extract the last 8 bits (last octet) of the IP address
+
+        // Increment the count for this last octet
+        last_octet_counts[last_octet]++; // Added counting of last octet occurrences
+
+        packet_count++; // Increment packet count
     }
 
     pcap_close(handle);
+
+    // Print the counts of last octet occurrences
+    for (int i = 0; i < 256; i++) {
+        if (last_octet_counts[i] > 0) {
+            printf("Last octet %d: %d\n", i, last_octet_counts[i]); // Added output of last octet counts
+        }
+    }
+
     return 0;
 }
